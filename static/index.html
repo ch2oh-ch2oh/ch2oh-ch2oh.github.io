@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>SVG Path Finder</title>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        #container {
+            flex-grow: 1;
+            position: relative;
+        }
+        #svgCanvas, #svgObject {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <svg id="svgCanvas" style="border:0px solid black">
+            <!-- Your SVG will go here -->
+        </svg>
+        <object id="svgObject" data="level1.svg" type="image/svg+xml" style="pointer-events: none;"></object>
+    </div>
+    <button id="findPathButton">Find Path</button>
+    <script src="/static/pathfinder.js"></script>
+</body>
+</html>
