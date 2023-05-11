@@ -3,6 +3,7 @@
 <head>
     <title>SVG Path Finder</title>
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js@3.1.1/dist/svg.min.js"></script>
     <style>
         body, html {
             margin: 0;
@@ -15,7 +16,7 @@
             flex-grow: 1;
             position: relative;
         }
-        #svgCanvas, #svgObject {
+        #svgCanvas {
             position: absolute;
             top: 0;
             left: 0;
@@ -26,12 +27,13 @@
 </head>
 <body>
     <div id="container">
-        <svg id="svgCanvas" style="border:0px solid black">
-            <!-- Your SVG will go here -->
-        </svg>
-        <object id="svgObject" data="level1.svg" type="image/svg+xml" style="pointer-events: none;"></object>
+        <img id="svgObject" src="level1.png" style="pointer-events: none;" alt="">
+        <svg id="svgCanvas" style="pointer-events: auto;"></svg>
     </div>
+    <input id="qrCodeInput" type="text" placeholder="Enter QR Code">
+    <button id="setStartButton">Set Start Point</button>
+    <input id="fromStoreCheckbox" type="checkbox"> From Store
     <button id="findPathButton">Find Path</button>
-    <script src="/static/pathfinder.js"></script>
+    <script src="static/pathfinder.js"></script>
 </body>
 </html>

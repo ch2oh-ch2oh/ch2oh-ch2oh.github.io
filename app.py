@@ -1,184 +1,196 @@
+# from flask import Flask, request, jsonify, send_from_directory
+# from PIL import Image
+# import numpy as np
+# from heapq import heappop, heappush
+#
+#
+# def rasterize_png(file_path):
+#     img = Image.open(file_path)
+#     img_gray = img.convert("L")
+#     img_data = np.array(img_gray)
+#     return img_data
+#
+#
+# def build_grid(image_data):
+#     threshold = 200
+#     grid = np.empty(image_data.shape, dtype=bool)
+#     np.less(image_data, threshold, out=grid)  # change to np.less
+#     return grid.tolist()
+#
+#
+# def dijkstra(grid, start, end):
+#     height = len(grid)
+#     width = len(grid[0])
+#     queue = [(0, start)]
+#     paths = {start: []}
+#     costs = {start: 0}
+#
+#     while queue:
+#         cost, (x, y) = heappop(queue)
+#         if (x, y) == end:
+#             return paths[(x, y)]
+#         for dx in [-1, 0, 1]:
+#             for dy in [-1, 0, 1]:
+#                 if dx == dy == 0:
+#                     continue  # Skip the current cell
+#                 nx, ny = x + dx, y + dy
+#                 if 0 <= nx < height and 0 <= ny < width and not grid[nx][ny]:
+#                     new_cost = cost + 1
+#                     if new_cost < costs.get((nx, ny), float('inf')):
+#                         heappush(queue, (new_cost, (nx, ny)))
+#                         paths[(nx, ny)] = paths[(x, y)] + [(nx, ny)]
+#                         costs[(nx, ny)] = new_cost
+#     return []
+#
+#
+# app = Flask(__name__, static_url_path='', static_folder='static')
+#
+# file_path = "static/level1.png"
+# image_data = rasterize_png(file_path)
+# grid_data = build_grid(image_data)
+#
+#
+# @app.route('/')
+# def home():
+#     return app.send_static_file('index.html')
+#
+#
+# PNG_CANVAS_WIDTH = 550
+# PNG_CANVAS_HEIGHT = 527
+#
+#
+# @app.route('/find_path', methods=['POST'])
+# def find_path_endpoint():
+#     start = tuple(map(int, request.json['start']))
+#     end = tuple(map(int, request.json['end']))
+#
+#     if not (0 <= start[0] < PNG_CANVAS_WIDTH and 0 <= start[1] < PNG_CANVAS_HEIGHT):
+#         return jsonify({'error': 'Point is out of range'}), 400
+#
+#     path = dijkstra(grid_data, start, end)
+#     path = [[float(coord) for coord in point] for point in path]
+#
+#     return jsonify({'path': path}), 200
+#
+#
+# @app.route('/path/<path:filename>')
+# def serve_path(filename):
+#     return send_from_directory('static', filename)
+#
+#
+# if __name__ == '__main__':
+#     app.run(debug=True)
+
 from flask import Flask, request, jsonify, send_from_directory
-import heapq
-from svgpathtools import svg2paths
-import math
-from pathfinding.core.grid import Grid
-from pathfinding.finder.a_star import AStarFinder
+from PIL import Image
+import numpy as np
+from heapq import heappop, heappush
+
+def rasterize_png(file_path):
+    img = Image.open(file_path)
+    img_gray = img.convert("L")
+    img_data = np.array(img_gray)
+    return img_data
 
 
-# def reconstruct_path(came_from, start, goal):
-#     path = [goal]
-#     current = goal
-#     while current != start:
-#         current = came_from[current]
-#         path.append(current)
-#     path.reverse()
-#     return path
-#
-#
-from svgpathtools import Line
+def build_grid(image_data):
+    threshold = 200
+    grid = np.empty(image_data.shape, dtype=bool)
+    np.less(image_data, threshold, out=grid)
+    return grid.tolist()
 
-
-def point_inside_polygon(x, y, segments):
-    point = complex(x, y)
-    crossings = 0
-    n = len(segments)
-
-    for i in range(n):
-        segment = segments[i]
-        if isinstance(segment, Line):
-            p1 = segment.start
-            p2 = segment.end
-
-            if y > min(p1.imag, p2.imag):
-                if y <= max(p1.imag, p2.imag):
-                    if x <= max(p1.real, p2.real):
-                        if p1.imag != p2.imag:
-                            xinters = (y - p1.imag) * (p2.real - p1.real) / (p2.imag - p1.imag) + p1.real
-                        if p1.real == p2.real or x <= xinters:
-                            crossings += 1
-
-    return crossings % 2 == 1
-
-
-# def get_svg_neighbors(point, polygons, step=1):
-#     x, y = point
-#     neighbors = [
-#         (x + step, y),
-#         (x - step, y),
-#         (x, y + step),
-#         (x, y - step),
-#     ]
-#
-#     def is_valid_neighbor(neighbor):
-#         return not any(point_inside_polygon(neighbor[0], neighbor[1], polygon) for polygon in polygons)
-#
-#     return [neighbor for neighbor in neighbors if is_valid_neighbor(neighbor)]
-#
-#
-class PriorityQueue:
-    def __init__(self):
-        self.elements = []
-
-    def empty(self):
-        return len(self.elements) == 0
-
-    def put(self, item, priority):
-        heapq.heappush(self.elements, (priority, item))
-
-    def get(self):
-        return heapq.heappop(self.elements)[1]
-
-#
-# def heuristic(a, b):
-#     return math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
-
-
-def build_grid(paths):
-    """Builds a grid of the specified width and height.
-
-    Each cell in the grid is set to True if it is inside a path, and False otherwise.
-    """
-    grid = [[False] * SVG_CANVAS_WIDTH for _ in range(SVG_CANVAS_HEIGHT)]
-    for y in range(SVG_CANVAS_HEIGHT):
-        for x in range(SVG_CANVAS_WIDTH):
-            for path in paths:
-                if point_inside_polygon(x, y, path):
-                    grid[y][x] = True
-                    break
-    return grid
-
-
-def find_path(start, end, paths):
-    start = tuple(map(int, start))
-    end = tuple(map(int, end))
-
-    grid_data = build_grid(paths)
-
-    grid = Grid(matrix=grid_data)
-
-    start_node = grid.node(start[0], start[1])
-    end_node = grid.node(end[0], end[1])
-
-    finder = AStarFinder()
-    path, _ = finder.find_path(start_node, end_node, grid)
-
-    return path
 
 def dijkstra(grid, start, end):
-    queue = PriorityQueue()
-    queue.put(start, 0)
-    came_from = {}
-    cost_so_far = {}
-    came_from[start] = None
-    cost_so_far[start] = 0
+    height = len(grid)
+    width = len(grid[0])
+    queue = [(0, start)]
+    paths = {start: []}
+    costs = {start: 0}
 
-    while not queue.empty():
-        current = queue.get()
-
-        if current == end:
-            break
-
-        for next in grid.neighbors(current):
-            new_cost = cost_so_far[current] + grid.cost(current, next)
-            if next not in cost_so_far or new_cost < cost_so_far[next]:
-                cost_so_far[next] = new_cost
-                priority = new_cost
-                queue.put(next, priority)
-                came_from[next] = current
-
-    return came_from, cost_so_far
-
+    while queue:
+        cost, (x, y) = heappop(queue)
+        if (x, y) == end:
+            return paths[(x, y)]
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx == dy == 0:
+                    continue  # Skip the current cell
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < height and 0 <= ny < width and not grid[nx][ny]:
+                    new_cost = cost + 1
+                    if new_cost < costs.get((nx, ny), float('inf')):
+                        heappush(queue, (new_cost, (nx, ny)))
+                        paths[(nx, ny)] = paths[(x, y)] + [(nx, ny)]
+                        costs[(nx, ny)] = new_cost
+    return []
 
 
 app = Flask(__name__, static_url_path='', static_folder='static')
 
+file_path = "static/level1.png"
+image_data = rasterize_png(file_path)
+grid_data = build_grid(image_data)
 
-# Импортируйте SVG файл при инициализации сервера
-# Update the import_svg function to create polygons from paths
-def import_svg(file_path):
-    paths, attributes = svg2paths(file_path)
-    return paths
+# Hardcoded store entry and exit points
+store_entry = (100, 100)  # Replace with actual coordinates
+store_exit = (200, 200)  # Replace with actual coordinates
 
+# Hardcoded parking spots identified by QR codes
+spots = {
+    'qr1': (0, 0),  # Replace 'qr1', 'qr2', etc. with actual QR code identifiers
+    'qr2': (400, 400),  # Replace (x1, y1), (x2, y2), etc. with actual coordinates
+    # Add more spots as needed
+}
 
-file_path = "static/level1.svg"
-paths = import_svg(file_path)
+start = None
+end = None
 
 
 @app.route('/')
 def home():
     return app.send_static_file('index.html')
 
-SVG_CANVAS_WIDTH = 1920  # replace with actual width
-SVG_CANVAS_HEIGHT = 1080  # replace with actual height
+
+@app.route('/set_start', methods=['POST'])
+def set_start_endpoint():
+    global start
+    qr_code = request.json['qr_code']
+    if qr_code in spots:
+        start = spots[qr_code]
+        return jsonify({'message': 'Start point set'}), 200
+    else:
+        return jsonify({'error': 'Invalid QR code'}), 400
 
 
 @app.route('/find_path', methods=['POST'])
 def find_path_endpoint():
-    start = request.json['start']
-    end = request.json['end']
+    global start, end
+    from_store = request.json.get('from_store', False)
+    if from_store:
+        start = store_exit
+        qr_code = request.json['qr_code']
+        if qr_code in spots:
+            end = spots[qr_code]
+        else:
+            return jsonify({'error': 'Invalid QR code'}), 400
+    else:
+        end = store_entry
 
-    print(f"Start: {start}")
-    print(f"End: {end}")
+    if not start or not end:
+        return jsonify({'error': 'Start or end point not set'}), 400
 
-    if not (0 <= start[0] < SVG_CANVAS_WIDTH and 0 <= start[1] < SVG_CANVAS_HEIGHT):
-        return jsonify({'error': 'Point is out of range'}), 400
-
-    # path = find_path(start, end, paths)
-    start = tuple(map(int, start))
-    end = tuple(map(int, end))
-    path, _ = dijkstra(start, end, paths)
-
+    path = dijkstra(grid_data, start, end)
     path = [[float(coord) for coord in point] for point in path]
 
+    start = None
+    end = None
+
     return jsonify({'path': path}), 200
-
-
 
 @app.route('/path/<path:filename>')
 def serve_path(filename):
     return send_from_directory('static', filename)
 
-
 if __name__ == '__main__':
     app.run(debug=True)
+
